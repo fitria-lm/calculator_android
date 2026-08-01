@@ -20,7 +20,7 @@ A modern Android calculator built with Jetpack Compose featuring Neo Brutalism d
 ## Interface
 | Light Theme | Dark Theme |
 |:-----------:|:----------:|
-| <img src="screenshots/light_theme.jpg" alt="Light Theme" height="400"> | <img src="screenshots/dark_theme.jpg" alt="Dark Theme" height="400"> |
+| <img src="screenshots/light_theme.jpg" alt="Light Theme" height="800"> | <img src="screenshots/dark_theme.jpg" alt="Dark Theme" height="800"> |
 
 ## How to Run
 ### Option 1: Download APK
