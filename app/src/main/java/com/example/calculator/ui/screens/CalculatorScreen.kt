@@ -17,7 +17,6 @@ import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material3.*
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,6 +28,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.calculator.ui.theme.CalculatorTheme
 import com.example.calculator.ui.theme.LocalCalculatorColors
@@ -68,7 +70,6 @@ fun CalculatorScreen(
                             tint = colors.textPrimary
                         )
                     }
-                    // Tombol History sudah dipindahkan ke dalam display, jadi di sini kita hapus
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = colors.background,
@@ -88,12 +89,12 @@ fun CalculatorScreen(
                     .padding(horizontal = 20.dp)
                     .padding(top = 12.dp)
             ) {
-                // ---- Display dengan tombol History di dalamnya ----
                 NeoDisplay(
                     expression = uiState.expression,
-                    result = uiState.resultText,
+                    previewResult = uiState.previewResult,
                     colors = colors,
                     onHistoryClick = { viewModel.toggleHistory() },
+                    isDarkTheme = isDarkTheme,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp)
@@ -101,7 +102,6 @@ fun CalculatorScreen(
 
                 Spacer(modifier = Modifier.height(28.dp))
 
-                // ---- Keypad ----
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -138,7 +138,6 @@ fun CalculatorScreen(
                         NeoButton("3", "3", colors, viewModel, isDarkTheme, Modifier.weight(1f))
                         NeoButton("+", "+", colors, viewModel, isDarkTheme, Modifier.weight(1f))
                     }
-                    // Row 5: tombol "=" diperbesar
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         NeoButton("0", "0", colors, viewModel, isDarkTheme, Modifier.weight(1f))
                         NeoButton(".", ".", colors, viewModel, isDarkTheme, Modifier.weight(1f))
@@ -151,7 +150,7 @@ fun CalculatorScreen(
                             isDarkTheme = isDarkTheme,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(86.dp) // 20% lebih tinggi (72 * 1.2 = 86.4)
+                                .height(96.dp)
                         )
                     }
                 }
@@ -182,16 +181,16 @@ fun CalculatorScreen(
 @Composable
 fun NeoDisplay(
     expression: String,
-    result: String,
+    previewResult: String,
     colors: com.example.calculator.ui.theme.CalculatorColors,
     onHistoryClick: () -> Unit,
+    isDarkTheme: Boolean,
     modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier
-            .padding(start = 6.dp, bottom = 6.dp) // ruang untuk shadow (kanan-bawah)
+            .padding(start = 6.dp, bottom = 6.dp)
     ) {
-        // Layer shadow (kanan-bawah, solid)
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -202,7 +201,6 @@ fun NeoDisplay(
                 )
         )
 
-        // Layer utama display
         Surface(
             modifier = Modifier
                 .fillMaxSize()
@@ -216,21 +214,21 @@ fun NeoDisplay(
             shadowElevation = 0.dp
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                // Tombol History di pojok kiri atas
                 IconButton(
                     onClick = onHistoryClick,
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(16.dp)
+                        .size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.History,
                         contentDescription = "History",
-                        tint = colors.textSecondary
+                        tint = if (isDarkTheme) Color.White else Color.Black,
+                        modifier = Modifier.size(32.dp)
                     )
                 }
 
-                // Ekspresi dan hasil di kanan bawah
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -238,22 +236,31 @@ fun NeoDisplay(
                     verticalArrangement = Arrangement.Bottom
                 ) {
                     Text(
-                        text = expression,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = colors.textSecondary,
-                        textAlign = TextAlign.End,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = result,
+                        text = expression.ifEmpty { "0" },
                         style = MaterialTheme.typography.displayLarge.copy(
-                            fontSize = 56.sp
+                            fontSize = 48.sp,
+                            fontWeight = FontWeight.Bold
                         ),
                         color = colors.textPrimary,
                         textAlign = TextAlign.End,
                         modifier = Modifier.fillMaxWidth()
                     )
+
+                    if (previewResult.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = previewResult,
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Normal
+                            ),
+                            color = colors.textSecondary.copy(alpha = 0.7f),
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.height(32.dp))
+                    }
                 }
             }
         }
@@ -272,11 +279,18 @@ fun NeoButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+    val haptic = LocalHapticFeedback.current
 
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
+        targetValue = if (isPressed) 0.94f else 1f,
         animationSpec = tween(durationMillis = 100),
         label = "scale"
+    )
+
+    val shadowOffset by animateDpAsState(
+        targetValue = if (isPressed) 1.dp else 3.dp,
+        animationSpec = tween(durationMillis = 100),
+        label = "shadowOffset"
     )
 
     val bgColor = when {
@@ -287,8 +301,9 @@ fun NeoButton(
     }
 
     val textColor = when {
-        tag in listOf("÷", "×", "-", "+", "=") -> {
-            if (isDarkTheme && tag != "=") Color.Black else colors.textPrimary
+        tag == "=" -> Color.Black
+        tag in listOf("÷", "×", "-", "+") -> {
+            if (isDarkTheme) Color.Black else colors.textPrimary
         }
         else -> colors.textPrimary
     }
@@ -296,21 +311,18 @@ fun NeoButton(
     Box(
         modifier = modifier
             .height(72.dp)
-            .padding(start = 6.dp, bottom = 6.dp)
+            .padding(start = 3.dp, bottom = 3.dp)
     ) {
-        // Shadow layer
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .offset(x = 6.dp, y = 6.dp)
+                .offset(x = shadowOffset, y = shadowOffset)
                 .background(
                     color = colors.shadow,
                     shape = RoundedCornerShape(12.dp)
                 )
                 .scale(scale)
         )
-
-        // Button layer
         Surface(
             modifier = Modifier
                 .fillMaxSize()
@@ -322,9 +334,19 @@ fun NeoButton(
                 .scale(scale)
                 .clickable(
                     interactionSource = interactionSource,
-                    indication = LocalIndication.current   // <-- PERUBAHAN DI SINI
+                    indication = null
                 ) {
-                    viewModel.onButtonClick(tag)
+                    haptic.performHapticFeedback(HapticFeedbackType.KeyboardTap)
+                    when (tag) {
+                        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" -> viewModel.onDigitClick(tag)
+                        "+", "-", "×", "÷" -> viewModel.onOperatorClick(tag)
+                        "=" -> viewModel.onEqualClick()
+                        "⌫" -> viewModel.onDeleteClick()
+                        "AC" -> viewModel.onClearClick()
+                        "." -> viewModel.onDecimalClick()
+                        "()" -> viewModel.onParenthesesClick()
+                        "%" -> viewModel.onPercentClick()
+                    }
                 },
             shape = RoundedCornerShape(12.dp),
             color = bgColor,
@@ -353,7 +375,6 @@ fun NeoButton(
     }
 }
 
-// --- HistoryPanel dan HistoryItemRow (tidak berubah, hanya corner radius disesuaikan) ---
 @Composable
 fun HistoryPanel(
     history: List<HistoryItem>,
@@ -403,7 +424,7 @@ fun HistoryPanel(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No history yet",
+                    text = "No calculation history.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = colors.textSecondary
                 )

@@ -1,4 +1,3 @@
-// File: ui/viewmodels/CalculatorViewModel.kt
 package com.example.calculator.ui.viewmodels
 
 import android.content.Context
@@ -6,15 +5,22 @@ import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import java.text.DecimalFormat
+import org.json.JSONArray
+import org.json.JSONObject
+
+enum class CalculatorState {
+    INPUT,
+    RESULT_SHOWN
+}
 
 data class CalculatorUiState(
     val expression: String = "",
-    val resultText: String = "0"
+    val previewResult: String = "",
+    val resultText: String = "0",
+    val state: CalculatorState = CalculatorState.INPUT
 )
 
-// ========== DATA CLASS UNTUK HISTORY ==========
 data class HistoryItem(
     val expression: String,
     val result: String,
@@ -25,29 +31,30 @@ class CalculatorViewModel(
     private val context: Context
 ) : ViewModel() {
 
-    // ========== STATE TEMA ==========
     private val _isDarkTheme = MutableStateFlow(false)
     val isDarkTheme: StateFlow<Boolean> = _isDarkTheme.asStateFlow()
 
-    init {
-        val prefs = context.getSharedPreferences("calculator_prefs", Context.MODE_PRIVATE)
-        val savedTheme = prefs.getBoolean("dark_theme", false)
-        _isDarkTheme.value = savedTheme
-    }
-
-    fun toggleTheme() {
-        val newValue = !_isDarkTheme.value
-        _isDarkTheme.value = newValue
-        val prefs = context.getSharedPreferences("calculator_prefs", Context.MODE_PRIVATE)
-        prefs.edit().putBoolean("dark_theme", newValue).apply()
-    }
-
-    // ========== STATE HISTORY ==========
     private val _history = MutableStateFlow<List<HistoryItem>>(emptyList())
     val history: StateFlow<List<HistoryItem>> = _history.asStateFlow()
 
     private val _isHistoryVisible = MutableStateFlow(false)
     val isHistoryVisible: StateFlow<Boolean> = _isHistoryVisible.asStateFlow()
+
+    private val _uiState = MutableStateFlow(CalculatorUiState())
+    val uiState: StateFlow<CalculatorUiState> = _uiState.asStateFlow()
+
+    init {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        _isDarkTheme.value = prefs.getBoolean("dark_theme", false)
+        loadHistoryFromPrefs()
+    }
+
+    fun toggleTheme() {
+        val newValue = !_isDarkTheme.value
+        _isDarkTheme.value = newValue
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().putBoolean("dark_theme", newValue).apply()
+    }
 
     fun toggleHistory() {
         _isHistoryVisible.value = !_isHistoryVisible.value
@@ -55,142 +62,282 @@ class CalculatorViewModel(
 
     fun clearHistory() {
         _history.value = emptyList()
-        // Simpan ke SharedPreferences jika ingin persistensi (opsional)
-        // saveHistoryToPrefs()
+        saveHistoryToPrefs()
     }
 
-    private fun addToHistory(expression: String, result: String) {
-        val item = HistoryItem(expression, result)
-        // Simpan maksimal 20 item, yang terbaru di atas
-        _history.update { listOf(item) + it.take(19) }
-        // Simpan ke SharedPreferences jika ingin persistensi
-        // saveHistoryToPrefs()
-    }
-
-    // Untuk reuse ekspresi dari history
     fun appendExpression(expr: String) {
-        // Bersihkan jika ada "=" di akhir
         val cleanExpr = expr.replace(" =", "").trim()
         if (cleanExpr.isNotEmpty()) {
-            expression = cleanExpr
-            currentInput = cleanExpr
-            resultText = cleanExpr
-            _uiState.value = CalculatorUiState(expression, resultText)
+            _uiState.value = CalculatorUiState(
+                expression = cleanExpr,
+                previewResult = "",
+                resultText = "0",
+                state = CalculatorState.INPUT
+            )
+            updatePreview(cleanExpr)
         }
     }
 
-    // ========== STATE KALKULATOR ==========
-    private val _uiState = MutableStateFlow(CalculatorUiState())
-    val uiState: StateFlow<CalculatorUiState> = _uiState.asStateFlow()
-
-    private var currentInput = ""
-    private var expression = ""
-    private var resultText = "0"
-
-    fun onButtonClick(tag: String) {
-        when (tag) {
-            in "0".."9", "." -> handleNumber(tag)
-            "+", "-", "×", "÷" -> handleOperator(tag)
-            "%" -> handlePercent()
-            "AC" -> clearAll()
-            "⌫" -> backspace()
-            "=" -> calculateResult()
-            "()" -> handleParentheses()
-            else -> {}
+    fun onDigitClick(digit: String) {
+        val current = _uiState.value
+        if (current.state == CalculatorState.RESULT_SHOWN) {
+            _uiState.value = CalculatorUiState(
+                expression = digit,
+                previewResult = "",
+                state = CalculatorState.INPUT
+            )
+            updatePreview(digit)
+            return
         }
-        _uiState.value = CalculatorUiState(expression, resultText)
+        val newExpression = current.expression + digit
+        _uiState.value = current.copy(
+            expression = newExpression,
+            state = CalculatorState.INPUT
+        )
+        updatePreview(newExpression)
     }
 
-    // ---------- Handler Fungsi ----------
-    private fun handleNumber(value: String) {
-        if (currentInput == "Error") {
-            currentInput = ""
+    fun onOperatorClick(operator: String) {
+        val current = _uiState.value
+        if (current.state == CalculatorState.RESULT_SHOWN) {
+            val result = current.resultText
+            val newExpression = "$result $operator "
+            _uiState.value = CalculatorUiState(
+                expression = newExpression,
+                previewResult = "",
+                state = CalculatorState.INPUT
+            )
+            return
         }
-        if (value == "." && currentInput.contains(".")) return
-        if (currentInput.length >= 15) return
-        currentInput += value
-        expression += value
-        resultText = currentInput
-    }
 
-    private fun handleOperator(op: String) {
-        if (currentInput.isEmpty() && expression.isNotEmpty()) {
-            val lastChar = expression.last()
-            if (lastChar in setOf('+', '-', '×', '÷')) {
-                expression = expression.dropLast(1) + op
+        val currentExpr = current.expression
+        if (currentExpr.isNotEmpty()) {
+            val trimmedExpr = currentExpr.trim()
+            if (trimmedExpr.isNotEmpty() && trimmedExpr.last() in setOf('+', '-', '×', '÷')) {
+                val base = trimmedExpr.dropLast(1).trimEnd()
+                val newExpr = if (base.isNotEmpty()) "$base $operator " else "$operator "
+                _uiState.value = current.copy(
+                    expression = newExpr,
+                    previewResult = "",
+                    state = CalculatorState.INPUT
+                )
                 return
             }
         }
-        if (currentInput.isEmpty()) return
-        currentInput = ""
-        expression += op
-        resultText = expression
-    }
 
-    private fun handlePercent() {
-        if (currentInput.isNotEmpty()) {
-            val value = currentInput.toDoubleOrNull()
-            if (value != null) {
-                val percent = value / 100.0
-                currentInput = percent.toString()
-                expression = expression.replace(Regex("[0-9.]+$"), currentInput)
-                resultText = currentInput
-            }
-        }
-    }
-
-    private fun clearAll() {
-        currentInput = ""
-        expression = ""
-        resultText = "0"
-    }
-
-    private fun backspace() {
-        if (currentInput.isNotEmpty()) {
-            currentInput = currentInput.dropLast(1)
-            expression = expression.dropLast(1)
-            resultText = currentInput.ifEmpty { "0" }
-        } else if (expression.isNotEmpty()) {
-            expression = expression.dropLast(1)
-            resultText = expression
-        }
-    }
-
-    private fun handleParentheses() {
-        val openCount = expression.count { it == '(' }
-        val closeCount = expression.count { it == ')' }
-        if (openCount > closeCount) {
-            currentInput += ")"
-            expression += ")"
-            resultText = expression
+        val newExpression = if (currentExpr.isNotEmpty() && currentExpr.last().isDigit()) {
+            "$currentExpr $operator "
         } else {
-            currentInput += "("
-            expression += "("
-            resultText = expression
+            "$currentExpr$operator "
         }
+        _uiState.value = current.copy(
+            expression = newExpression,
+            previewResult = "",
+            state = CalculatorState.INPUT
+        )
     }
 
-    private fun calculateResult() {
+    fun onEqualClick() {
+        val current = _uiState.value
+        val expression = current.expression
         if (expression.isEmpty()) return
         try {
             val result = evaluateExpression(expression)
             val formatted = formatNumber(result)
-            val exprCopy = expression  // simpan ekspresi sebelum diubah
-            resultText = formatted
-            expression += " ="
-            currentInput = formatted
-
-            // Tambahkan ke history
-            addToHistory(exprCopy, formatted)
+            addToHistory(expression, formatted)
+            _uiState.value = CalculatorUiState(
+                expression = formatted,
+                previewResult = "",
+                resultText = formatted,
+                state = CalculatorState.RESULT_SHOWN
+            )
         } catch (e: Exception) {
-            resultText = "Error"
-            currentInput = "Error"
+            _uiState.value = current.copy(
+                resultText = "Error",
+                previewResult = ""
+            )
         }
     }
 
-    // ---------- Evaluasi Ekspresi (Shunting‑Yard) ----------
+    fun onDeleteClick() {
+        val current = _uiState.value
+        if (current.state == CalculatorState.RESULT_SHOWN) {
+            val currentResult = current.expression
+            if (currentResult.length > 1) {
+                val newResult = currentResult.dropLast(1)
+                _uiState.value = current.copy(
+                    expression = newResult,
+                    resultText = newResult,
+                    state = CalculatorState.RESULT_SHOWN
+                )
+            } else {
+                _uiState.value = CalculatorUiState(
+                    expression = "0",
+                    resultText = "0",
+                    state = CalculatorState.RESULT_SHOWN
+                )
+            }
+            return
+        }
+
+        val currentExpr = current.expression
+        if (currentExpr.isNotEmpty()) {
+            val newExpr = currentExpr.dropLast(1)
+            _uiState.value = current.copy(
+                expression = newExpr,
+                state = CalculatorState.INPUT
+            )
+            updatePreview(newExpr)
+        }
+    }
+
+    fun onClearClick() {
+        _uiState.value = CalculatorUiState(
+            expression = "",
+            previewResult = "",
+            resultText = "0",
+            state = CalculatorState.INPUT
+        )
+    }
+
+    fun onDecimalClick() {
+        val current = _uiState.value
+        if (current.state == CalculatorState.RESULT_SHOWN) {
+            _uiState.value = CalculatorUiState(
+                expression = "0.",
+                previewResult = "",
+                state = CalculatorState.INPUT
+            )
+            updatePreview("0.")
+            return
+        }
+
+        val currentExpr = current.expression
+        val lastNumber = currentExpr.split(Regex("[+\\-×÷()]")).lastOrNull() ?: ""
+        if (lastNumber.contains(".")) return
+
+        val newExpr = if (currentExpr.isEmpty() || currentExpr.last() in setOf('+', '-', '×', '÷', '(')) {
+            currentExpr + "0."
+        } else {
+            currentExpr + "."
+        }
+
+        _uiState.value = current.copy(
+            expression = newExpr,
+            state = CalculatorState.INPUT
+        )
+        updatePreview(newExpr)
+    }
+
+    fun onParenthesesClick() {
+        val current = _uiState.value
+        if (current.state == CalculatorState.RESULT_SHOWN) return
+
+        val currentExpr = current.expression
+        val openCount = currentExpr.count { it == '(' }
+        val closeCount = currentExpr.count { it == ')' }
+
+        val newExpr = if (openCount > closeCount) {
+            currentExpr + ")"
+        } else {
+            currentExpr + "("
+        }
+
+        _uiState.value = current.copy(
+            expression = newExpr,
+            state = CalculatorState.INPUT
+        )
+        updatePreview(newExpr)
+    }
+
+    fun onPercentClick() {
+        val current = _uiState.value
+        if (current.state == CalculatorState.RESULT_SHOWN) {
+            val value = current.resultText.toDoubleOrNull()
+            if (value != null) {
+                val percent = value / 100.0
+                val formatted = formatNumber(percent)
+                _uiState.value = CalculatorUiState(
+                    expression = formatted,
+                    resultText = formatted,
+                    state = CalculatorState.RESULT_SHOWN
+                )
+            }
+            return
+        }
+
+        val currentExpr = current.expression
+        if (currentExpr.isNotEmpty() && currentExpr.last().isDigit()) {
+            val newExpr = currentExpr + "%"
+            _uiState.value = current.copy(
+                expression = newExpr,
+                state = CalculatorState.INPUT
+            )
+            updatePreview(newExpr)
+        }
+    }
+
+    private fun updatePreview(expression: String) {
+        if (expression.isEmpty()) {
+            _uiState.value = _uiState.value.copy(previewResult = "")
+            return
+        }
+
+        val trimmed = expression.trim()
+        if (trimmed.isEmpty() ||
+            trimmed.last() in setOf('+', '-', '×', '÷', '%', '(') ||
+            trimmed.count { it == '(' } > trimmed.count { it == ')' }) {
+            _uiState.value = _uiState.value.copy(previewResult = "")
+            return
+        }
+
+        try {
+            val result = evaluateExpression(expression)
+            _uiState.value = _uiState.value.copy(previewResult = formatNumber(result))
+        } catch (e: Exception) {
+            _uiState.value = _uiState.value.copy(previewResult = "")
+        }
+    }
+
+    private fun addToHistory(expression: String, result: String) {
+        val item = HistoryItem(expression, result)
+        _history.value = listOf(item) + _history.value.take(19)
+        saveHistoryToPrefs()
+    }
+
+    private fun loadHistoryFromPrefs() {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val jsonString = prefs.getString(KEY_HISTORY, null) ?: return
+        try {
+            val jsonArray = JSONArray(jsonString)
+            val list = mutableListOf<HistoryItem>()
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                val expression = obj.getString("expression")
+                val result = obj.getString("result")
+                val timestamp = obj.getLong("timestamp")
+                list.add(HistoryItem(expression, result, timestamp))
+            }
+            _history.value = list
+        } catch (e: Exception) {
+        }
+    }
+
+    private fun saveHistoryToPrefs() {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val jsonArray = JSONArray()
+        _history.value.forEach {
+            val obj = JSONObject()
+            obj.put("expression", it.expression)
+            obj.put("result", it.result)
+            obj.put("timestamp", it.timestamp)
+            jsonArray.put(obj)
+        }
+        prefs.edit().putString(KEY_HISTORY, jsonArray.toString()).apply()
+    }
+
     private fun evaluateExpression(expr: String): Double {
-        val clean = expr.replace("×", "*").replace("÷", "/")
+        val clean = expr.replace("×", "*").replace("÷", "/").replace(" ", "")
         return evaluate(clean)
     }
 
@@ -215,8 +362,18 @@ class CalculatorViewModel(
                     tokens.add(num)
                     continue
                 }
-                ch in "+-*/()" -> tokens.add(ch.toString())
-                else -> { /* abaikan */ }
+                ch in "+-*/()%" -> {
+                    if (ch == '%') {
+                        if (tokens.isNotEmpty() && tokens.last().toDoubleOrNull() != null) {
+                            val num = tokens.removeAt(tokens.size - 1)
+                            val percent = num.toDouble() / 100.0
+                            tokens.add(percent.toString())
+                        }
+                    } else {
+                        tokens.add(ch.toString())
+                    }
+                }
+                else -> {}
             }
             i++
         }
@@ -240,8 +397,7 @@ class CalculatorViewModel(
                 }
                 token in precedence -> {
                     while (stack.isNotEmpty() && stack.last() in precedence &&
-                        precedence[stack.last()]!! >= precedence[token]!!
-                    ) {
+                        precedence[stack.last()]!! >= precedence[token]!!) {
                         output.add(stack.removeAt(stack.size - 1))
                     }
                     stack.add(token)
@@ -283,8 +439,12 @@ class CalculatorViewModel(
         return if (value == value.toLong().toDouble()) {
             value.toLong().toString()
         } else {
-            val df = DecimalFormat("#.##########")
-            df.format(value)
+            DecimalFormat("#.##########").format(value)
         }
+    }
+
+    companion object {
+        private const val PREFS_NAME = "calculator_prefs"
+        private const val KEY_HISTORY = "history_json"
     }
 }

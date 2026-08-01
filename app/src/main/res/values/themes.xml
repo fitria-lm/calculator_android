@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.Calculator" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.CalculatorSplash" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+
+        <!-- Background Splash -->
+        <item name="android:windowSplashScreenBackground">@color/light_background</item>
+
+        <!-- Icon Splash -->
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+
+        <!-- Durasi -->
+        <item name="android:windowSplashScreenAnimationDuration">1000</item>
+
+        <!-- Setelah splash selesai -->
+        <item name="postSplashScreenTheme">@android:style/Theme.DeviceDefault.Light.NoActionBar</item>
+
+    </style>
+
 </resources>

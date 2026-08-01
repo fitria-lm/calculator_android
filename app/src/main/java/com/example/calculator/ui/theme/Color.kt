@@ -1,9 +1,7 @@
-// File: ui/theme/Color.kt
 package com.example.calculator.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// ---- Light Theme Colors ----
 val LightPrimary = Color(0xFFFFD60A)
 val LightSecondary = Color(0xFFFF9800)
 val LightBackground = Color(0xFFFFFDF5)
@@ -15,13 +13,11 @@ val LightTextPrimary = Color(0xFF111111)
 val LightTextSecondary = Color(0xFF666666)
 val LightError = Color(0xFFFF5A5F)
 
-// Light Button Colors
 val LightNumberButton = Color(0xFFFFFFFF)
 val LightFunctionButton = Color(0xFFF1F1F1)
 val LightOperatorButton = LightPrimary
 val LightEqualButton = LightSecondary
 
-// ---- Dark Theme Colors ----
 val DarkPrimary = Color(0xFFFFD60A)
 val DarkSecondary = Color(0xFFFF9800)
 val DarkBackground = Color(0xFF121212)
@@ -33,13 +29,11 @@ val DarkTextPrimary = Color(0xFFFFFFFF)
 val DarkTextSecondary = Color(0xFFBDBDBD)
 val DarkError = Color(0xFFFF6B6B)
 
-// Dark Button Colors
 val DarkNumberButton = Color(0xFF3A3A3A)
 val DarkFunctionButton = Color(0xFF5A5A5A)
 val DarkOperatorButton = DarkPrimary
 val DarkEqualButton = DarkSecondary
 
-// Data class untuk menyimpan semua warna tema
 data class CalculatorColors(
     val primary: Color,
     val secondary: Color,
@@ -57,7 +51,6 @@ data class CalculatorColors(
     val equalButton: Color
 )
 
-// Light Theme
 val LightCalculatorColors = CalculatorColors(
     primary = LightPrimary,
     secondary = LightSecondary,
@@ -75,7 +68,6 @@ val LightCalculatorColors = CalculatorColors(
     equalButton = LightEqualButton
 )
 
-// Dark Theme
 val DarkCalculatorColors = CalculatorColors(
     primary = DarkPrimary,
     secondary = DarkSecondary,

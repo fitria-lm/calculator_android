@@ -1,4 +1,3 @@
-// File: MainActivity.kt
 package com.example.calculator
 
 import android.app.Activity
@@ -11,6 +10,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.calculator.ui.screens.CalculatorScreen
@@ -20,6 +20,7 @@ import com.example.calculator.ui.viewmodels.CalculatorViewModelFactory
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         setContent {
             val factory = remember { CalculatorViewModelFactory(applicationContext) }

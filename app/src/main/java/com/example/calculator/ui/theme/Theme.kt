@@ -1,4 +1,3 @@
-// File: ui/theme/Theme.kt
 package com.example.calculator.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -10,7 +9,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-// CompositionLocal untuk mengakses warna kustom di seluruh komponen
 val LocalCalculatorColors = staticCompositionLocalOf { LightCalculatorColors }
 
 @Composable
@@ -18,10 +16,8 @@ fun CalculatorTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    // Pilih palet warna berdasarkan tema
     val colors = if (darkTheme) DarkCalculatorColors else LightCalculatorColors
 
-    // Buat colorScheme Material3 dengan warna kustom
     val colorScheme = if (darkTheme) {
         darkColorScheme(
             primary = DarkPrimary,
@@ -48,11 +44,10 @@ fun CalculatorTheme(
         )
     }
 
-    // Sediakan warna kustom melalui CompositionLocal dan MaterialTheme
     CompositionLocalProvider(LocalCalculatorColors provides colors) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = CalculatorTypography  // dari Type.kt
+            typography = CalculatorTypography
         ) {
             content()
         }
