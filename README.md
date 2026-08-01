@@ -18,9 +18,11 @@ A modern Android calculator built with Jetpack Compose featuring Neo Brutalism d
 - **Target SDK:** Android 16 (API 36)
 
 ## Interface
+<div align="center">
 | Light Theme | Dark Theme |
 |:-----------:|:----------:|
-| <img src="screenshots/light_theme.jpg" alt="Light Theme" height="800"> | <img src="screenshots/dark_theme.jpg" alt="Dark Theme" height="800"> |
+| <img src="screenshots/light_theme.jpg" alt="Light Theme" height="650"> | <img src="screenshots/dark_theme.jpg" alt="Dark Theme" height="650"> |
+</div>
 
 ## How to Run
 ### Option 1: Download APK
