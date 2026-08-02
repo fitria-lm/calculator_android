@@ -1,13 +1,12 @@
 # Kalkulator Neo - Android App
-A modern Android calculator built with Jetpack Compose featuring Neo Brutalism design and Google Calculator-like behavior. The app provides a clean, responsive interface with live preview results, a calculation history panel, and full dark/light theme support. Designed for simplicity and speed, the application persists theme preferences and calculation history locally.
+A modern Android calculator built with Jetpack Compose featuring modern brutalist design and Google Calculator-like behavior. The app provides a clean, responsive interface with live preview results, a calculation history panel, and full dark/light theme support. Designed for simplicity and speed, the application persists theme preferences and calculation history locally.
 
 ## Features
-- **Neo Brutalism UI:** Hard shadows, thick borders, minimal corner radius, and a distinctive color palette.
+- **Brutalist UI:** Hard shadows, thick borders, minimal corner radius, and a distinctive color palette.
 - **Live Preview:** See calculation results in real-time as you type.
-- **Smart Logic:** Behaves exactly like Google Calculator with proper state management (INPUT/RESULT_SHOWN).
+- **Smart Logic:** Google-like behavior with proper input/result state management.
 - **History Panel:** Stores last 20 calculations, click to reuse expressions.
-- **Dual Theme:** Light and Dark mode with persistent preference.
-- **Custom Splash Screen:** Logo with fade-in animation.
+- **Dual Theme:** Toggle between Light and Dark mode, with persistent local storage.
 
 ## Tech Stack
 - **Language:** Kotlin
@@ -42,5 +41,5 @@ Download and install the latest APK directly on your Android device:
 ## License
 This project is licensed under the MIT License.
 
-**Developed by:** Fitria LM
+**Developed by:** Fitria LM  
 **Build Date:** 28 July 2026
