@@ -42,5 +42,6 @@ Download and install the latest APK directly on your Android device:
 ## License
 This project is licensed under the MIT License.
 
-**Developed by:** Your Name
-**Build Date:** August 2026
+**Developed by:** Fitria LM
+
+**Build Date:** 28 July 2026
